@@ -19,8 +19,8 @@ Novedades
 	1. Regeneracion de vida y escudo (Disponible)<br>
 	2. Trap/Trampa (Disponible)<br>
 	3. Invisibilidad (Disponible)<br>
-	4. Crowbar (Por hacer)<br>
-	5. Baja gravedad (Por hacer)<br>
+	4. Infinitas Crowbar Tirables (Por hacer)<br>
+	5. Baja gravedad (Disponible)<br>
 	6. Random (Por hacer)<br>
 	7. Teletransportacion (Por hacer)<br>
 	8. Escudo (Por hacer)<br>
