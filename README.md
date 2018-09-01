@@ -33,4 +33,4 @@ Novedades
 - Un gancho que te permite desplazarte por cualquier lado del mapa. (+hook)<br>
 - No hay limite de velocidad al hacer BHOP. (Bunny hop)<br>
 - Se pueden bloquear el uso de ciertas armas. (Por hacer)<br>
-- Se puede configurar el daño de las armas. (Por hacer)<br>
+- Se puede configurar el daño de las armas.<br>
