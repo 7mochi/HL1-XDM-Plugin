@@ -18,14 +18,14 @@ Novedades
 - Hay runas que te dan poderes como:<br>
 	1. Regeneracion de vida y escudo (Disponible)<br>
 	2. Trap/Trampa (Disponible)<br>
-	3. Invisibilidad (Por hacer)<br>
+	3. Invisibilidad (Disponible)<br>
 	4. Crowbar (Por hacer)<br>
 	5. Baja gravedad (Por hacer)<br>
 	6. Random (Por hacer)<br>
 	7. Teletransportacion (Por hacer)<br>
 	8. Escudo (Por hacer)<br>
 	9. Super salto (Por hacer)<br>
-	10. Super velocidad (Por hacer)<br>
+	10. Super velocidad (Disponible)<br>
 	11. Vampirismo (Por hacer)<br>
 	12. Proteccion (Por hacer)<br>
 	13. Super pistola (Por hacer)<br>
