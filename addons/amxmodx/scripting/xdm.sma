@@ -29,13 +29,26 @@
 #include <hl>
 #include <superspawns>
 
-#define PLUGIN_NAME		"[HL] XDM Beta v1.0"
-#define PLUGIN_NAME_SH	"[HL] XDM Beta v1.0"
-#define PLUGIN_VER		"Beta 1.0 Build 29/8/2018"
+#define PLUGIN_NAME		"[HL] XDM Beta v1.1"
+#define PLUGIN_NAME_SH	"[HL] XDM Beta v1.1"
+#define PLUGIN_VER		"Beta 1.1 Build 31/8/2018"
 #define PLUGIN_AUTHOR	"FlyingCat"
 
 #define SIZE_WEAPONS 14 
 #define SIZE_AMMO 11
+
+// HL PDatas
+const m_pPlayer					= 28;
+const m_fInSpecialReload 		= 34;
+const m_flNextPrimaryAttack 	= 35;
+const m_flNextSecondaryAttack 	= 36;
+const m_flTimeWeaponIdle 		= 37;
+const m_iClip 					= 40;
+const m_fInReload				= 43;
+const m_flNextAttack			= 148;
+const m_iFOV 					= 298;
+
+const DMG_CROSSBOW  			= (DMG_BULLET | DMG_NEVERGIB);
 
 // Model
 #define MDL_RUNE                "models/xdm_rune.mdl"
@@ -46,7 +59,11 @@
 // Sprite
 #define SPR_RUNE_DOT			"sprites/dot.spr"
 #define SPR_RUNE_TR_SHOCKW		"sprites/shockwave.spr"
-#define NUMB_RUNES              2 
+// Numero de runas
+#define NUMB_RUNES              4 
+#define player_id 1
+#define is_player(%1) (player_id <= %1 <= MAX_PLAYERS)
+#define InZoom(%1) (get_pdata_int(%1, m_iFOV) != 0)
 
 // TaskIDs
 enum (+=100) {
@@ -61,6 +78,7 @@ new gCvarStartHealth;
 new gCvarStartArmor;
 new gCvarStartLongJump;
 new gCvarGameName;
+new gCvarPlayerSpeed;
 // Runas
 new gCvarNumbRunes[NUMB_RUNES];
 new gCvarColorRunes[NUMB_RUNES];
@@ -75,19 +93,19 @@ new gCvarTrapDamage;
 new gCvarTrapFragBonus;
 new gCylinderSprite;
 new gMessageDeathMsg;
+// Runa Cloak (Player dificil de ver, casi invisible)
+new gCvarCloakValue;
+// Runa Super Speed
+new gCvarSSpeedVelocity;
 // Hook
 new gCvarHookSpeed;
 new gCvarHookEnabled;
-
-// HL PDatas
-const m_pPlayer					= 28;
-const m_fInSpecialReload 		= 34;
-const m_flNextPrimaryAttack 	= 35;
-const m_flNextSecondaryAttack 	= 36;
-const m_flTimeWeaponIdle 		= 37;
-const m_iClip 					= 40;
-const m_fInReload				= 43;
-const m_flNextAttack			= 148;
+// Daño de armas
+new gCvarDamage9mmhandgun;
+new gCvarDamage357;
+new gCvarDamage9mmar;
+new gCvarDamageShotgun;
+new gCvarDamageCrossbow;
 
 new const gNameStartWeapons[SIZE_WEAPONS][] = {
 	"xdm_start_357",
@@ -151,22 +169,31 @@ new const gAmmoClass[][] = {
 
 new const gNameNumbRunes[NUMB_RUNES][] = {
     "xdm_numb_regen_runes",
-    "xdm_numb_trap_runes"
+    "xdm_numb_trap_runes",
+    "xdm_numb_cloak_runes",
+    "xdm_numb_sspeed_runes"
 };
 
 new const gNameColorRunes[NUMB_RUNES][] = {
     "xdm_color_regen_runes",
-    "xdm_color_trap_runes"
+    "xdm_color_trap_runes", 
+    "xdm_color_cloak_runes",
+    "xdm_color_sspeed_runes"
 };
 
 new const gNameDescRunes[NUMB_RUNES][] = {
-	"Runa de regeneracion: Te regenera HP y HEV cada cierto tiempo.",
-	"Runa de Trampa: Cuando mueres se desata una onda expansiva que hace dano."
+	"Runa de regeneracion: Te regenera HP y HEV cada cierto tiempo.", 
+	"Runa de Trampa: Cuando mueres se desata una onda expansiva que hace dano.", 
+	"Runa Cloak: Te vuelves semi-invisible.",
+	"Runa Super Speed: Te mueves muchisimo mas rapido."
 };
 
 // Booleano para saber si un player tiene o no tiene una runa y de que tipo
 // Ninguna runa = 0
 // Runa de regeneracion = 1
+// Runa de trampa = 2
+// Runa Cloak = 3
+// Runa Super Speed = 4
 new g_bTieneRuna[MAX_PLAYERS + 1];
 
 new Trie:gTrieHandleInflictorToIgnore;
@@ -217,6 +244,11 @@ public plugin_init() {
 	for (new i = 0; i < (sizeof gRSWeaponClasses); i++) {
 		RegisterHam(Ham_Weapon_Reload, gRSWeaponClasses[i], "Weapon_Reload", 1);
 	}
+
+	// Daño de armas
+	RegisterHam(Ham_TraceAttack, "player", "Weapons_Damages");
+	RegisterHam(Ham_TraceAttack, "player", "Forward_TraceAttack");
+
 	// Recarga de la shotgun/escopeta es en partes
 	RegisterHam(Ham_Weapon_Reload, "weapon_shotgun", "Shotgun_Reload_Pre" , 0);
 	RegisterHam(Ham_Weapon_Reload, "weapon_shotgun", "Shotgun_Reload_Post", 1);
@@ -244,11 +276,13 @@ public plugin_precache() {
 
     create_cvar("xdm_version", PLUGIN_VER, FCVAR_SERVER);
 
-	gCvarGameName = create_cvar("xdm_gamename", "XDM Beta v0.1", FCVAR_SERVER | FCVAR_SPONLY);
+	gCvarGameName = create_cvar("xdm_gamename", "XDM Beta v1.1", FCVAR_SERVER | FCVAR_SPONLY);
 
 	gCvarStartHealth = create_cvar("xdm_start_health", "100");
 	gCvarStartArmor = create_cvar("xdm_start_armor", "0");
 	gCvarStartLongJump = create_cvar("xdm_start_longjump", "1");
+	// Velocidad del player
+	gCvarPlayerSpeed = create_cvar("xdm_player_speed", "300.0");
 	// Hook
 	gCvarHookSpeed = create_cvar("xdm_hook_speed", "5");
 	gCvarHookEnabled = create_cvar("xdm_hook_enabled", "1");
@@ -260,6 +294,13 @@ public plugin_precache() {
 		gCvarStartWeapons[i] = create_cvar(gNameStartWeapons[i], "0", FCVAR_SERVER);
 	for (new i; i < sizeof gCvarStartAmmo; i++)
 		gCvarStartAmmo[i] = create_cvar(gNameStartAmmo[i], "0", FCVAR_SERVER);
+
+	// Registrando cvar para el daño de las armas
+	gCvarDamage9mmhandgun = create_cvar("xdm_damage_9mmhandgun", "50.0");
+	gCvarDamage357 = create_cvar("xdm_damage_357", "150.0");
+	gCvarDamage9mmar = create_cvar("xdm_damage_9mmar", "40.0");
+	gCvarDamageShotgun = create_cvar("xdm_damage_shotgun", "60.0");
+	gCvarDamageCrossbow = create_cvar("xdm_damage_crossbow", "100.0");
 
 	// La frecuencia en que se regenerara la HP - 1.0 = 1 segundo
     gCvarRegenFrequency = create_cvar("xdm_regen_frequency", "1.0");
@@ -276,6 +317,12 @@ public plugin_precache() {
 	gCvarTrapFragBonus = create_cvar("xdm_trap_frags", "2");
 	gMessageDeathMsg = get_user_msgid("DeathMsg");
 
+	// El porcentaje de semi-invisibilidad del player con la Runa Cloak
+	gCvarCloakValue = create_cvar("xdm_cloak_value", "80");
+
+	// Velocidad del player con la runa Super Speed
+	gCvarSSpeedVelocity = create_cvar("xdm_sspeed_velocity", "600.0");
+
 	gTrieHandleInflictorToIgnore = TrieCreate();
 
 	for (new i; i < sizeof InflictorToIgnore; i++) {
@@ -289,6 +336,8 @@ public plugin_precache() {
     
     // Cargando las cvars de XDM
 	server_cmd("exec xdm.cfg");
+	// Cambiando la maxspeed del server para que funcione el set_user_maxspeed
+	set_cvar_num("sv_maxspeed", get_pcvar_float(gCvarSSpeedVelocity));
 }
 
 public plugin_cfg() {
@@ -323,11 +372,16 @@ public client_connect(id) {
             case 1: {
                 remove_task(TASK_REGENERATION + id);
             }
+            // Si la runa que tiene es la de Cloak
+            case 3: {
+            	// Volvemos a la normalidad la visibilidad del player
+            	UncloakPlayer(id);
+            }
         }
         g_bTieneRuna[id] = 0;
         // Se remueve el task encargado de mostrar un HUD al player con informacion de la runa
         remove_task(TASK_HUDDETAILSRUNE + id);
-    }
+    }    
 }
 
 public FwdPlayerKilled(victim, attacker) {
@@ -341,13 +395,14 @@ public FwdPlayerKilled(victim, attacker) {
             case 1: {
                 remove_task(TASK_REGENERATION + victim);
             }
+            // Si la runa que tiene es la de Trampa
             case 2: {
             	new szWeapon[30];
 				read_data(4, szWeapon, charsmax(szWeapon));
 				
-				//if (victim == iKiller) {
-				//	return PLUGIN_CONTINUE;
-				//}
+				if (victim == attacker) {
+					return PLUGIN_CONTINUE;
+				}
 				
 				if (TrieKeyExists(gTrieHandleInflictorToIgnore, szWeapon)) {
 			   		return PLUGIN_CONTINUE;
@@ -366,11 +421,22 @@ public FwdPlayerKilled(victim, attacker) {
 					
 				emit_sound(victim, CHAN_BODY, SND_RUNE_TR_EXPLODE, VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
             }
+            // Si la runa que tiene es la de Cloak
+            case 3: {
+            	// Volvemos a la normalidad la visibilidad del player
+            	UncloakPlayer(victim);
+            }
+            // Si la runa que tiene es la de Super Velocidad
+            case 4: {
+            	// Volvemos a la normalidad la visibilidad del player
+            	set_user_maxspeed(victim, get_pcvar_float(gCvarPlayerSpeed));
+            }
         }
         g_bTieneRuna[victim] = 0;
          // Se remueve el task encargado de mostrar un HUD al player con informacion de la runa
         remove_task(TASK_HUDDETAILSRUNE + victim);
-    }   
+    }
+    return PLUGIN_HANDLED;   
 }
 
 public func_regenHPHEV(taskID) {
@@ -386,6 +452,14 @@ public func_regenHPHEV(taskID) {
         	hl_set_user_armor(idPlayer, 100);
         }
     }
+}
+
+public CloakPlayer(id, alphaValue) {
+	set_user_rendering(id, kRenderFxGlowShell, 0, 0, 0, kRenderTransAlpha, alphaValue);
+}
+
+public UncloakPlayer(id) {
+	set_user_rendering(id, kRenderFxGlowShell, 0, 0, 0, kRenderTransAlpha, 255);
 }
 
 public ShowHUDDetailsRune(taskID) {
@@ -459,8 +533,11 @@ stock UTIL_CreateBeamCylinder(origin[3], addrad, sprite, startfrate, framerate, 
 }
 
 public FwdPlayerPostSpawn(id) {
-	if (is_user_alive(id)) 
+	if (is_user_alive(id)) {
 		SetPlayerStats(id);
+		// Cada player que entre modificarle la maxspeed a 300
+    	set_user_maxspeed(id, get_pcvar_float(gCvarPlayerSpeed));
+	}	
 }
 
 // Da equipamiento a los jugadores al spawnear
@@ -542,14 +619,14 @@ public Hook_On(id,level,cid) {
 
 public Hook_Off(id) {
 	if(is_user_alive(id)) 
-		set_user_gravity(id)
+		set_user_gravity(id);
 
-	hook[id]=false
-	return PLUGIN_HANDLED
+	hook[id]=false;
+	return PLUGIN_HANDLED;
 }
 
 public hook_prethink(id) {
-	id -= 10000
+	id -= 10000;
 	if(!is_user_alive(id)) {
 		hook[id]=false;
 	}
@@ -682,14 +759,34 @@ public FwdRunePicked(iEntityRune, iEntityPlayer) {
                 spawn_rune(1);
             }
 
-            // Runa de tipo Trap
+            // Runa de tipo Trampa
             case 2: {
             	// Muestra un HUD con la informacion sobre la runa
                 set_task(0.5, "ShowHUDDetailsRune", iEntityPlayer + TASK_HUDDETAILSRUNE, _, _, "b");
-                // No es necesario dar un powerup o algo por el estilo, suficiente pasandole el tipo de runa
+                // No es necesario dar un powerup o algo por el estilo por aca, porque ya es suficiente pasandole el tipo de runa
                 // en g_bTieneRuna[iEntityPlayer]
                 // Spawnea otra runa del mismo tipo
                 spawn_rune(2);
+            }
+
+            // Runa de tipo Cloak
+            case 3: {
+            	// Muestra un HUD con la informacion sobre la runa
+                set_task(0.5, "ShowHUDDetailsRune", iEntityPlayer + TASK_HUDDETAILSRUNE, _, _, "b");
+            	// Hacemos semi-invisible al player
+            	CloakPlayer(iEntityPlayer, get_pcvar_num(gCvarCloakValue));
+            	// Spawnea otra runa del mismo tipo
+            	spawn_rune(3);
+            }
+
+            // Runa de tipo Super Speed
+            case 4: {
+            	// Muestra un HUD con la informacion sobre la runa
+                set_task(0.5, "ShowHUDDetailsRune", iEntityPlayer + TASK_HUDDETAILSRUNE, _, _, "b");
+                // Modificamos la velocidad del player
+                set_user_maxspeed(iEntityPlayer, get_pcvar_float(gCvarSSpeedVelocity));
+                // Spawnea otra runa del mismo tipo
+                spawn_rune(4);
             }
         }
         // Remueve la runa al ser tocada por un jugador    
@@ -786,4 +883,37 @@ public Crossbow_Primary_Attack_Post(const crossbow) {
 // Velocidad de disparo de la ballesta (MOUSE2)
 public Crossbow_Secondary_Attack_Post(const crossbow) {
 	set_pdata_float(crossbow, m_flNextSecondaryAttack, 0.50, 4);
+}
+
+// Daño de armas
+public Weapons_Damages(victim, inflictor, Float:damage, Float:direction[3], traceresult, damagebits) {
+	if(!(1 <= inflictor <= MAX_PLAYERS))
+		return HAM_IGNORED;
+
+	if(get_user_weapon(inflictor) == HLW_GLOCK)
+		SetHamParamFloat(3, get_pcvar_float(gCvarDamage9mmhandgun));
+
+	if(get_user_weapon(inflictor) == HLW_PYTHON)
+		SetHamParamFloat(3, get_pcvar_float(gCvarDamage357));
+
+	if(get_user_weapon(inflictor) == HLW_SHOTGUN)
+		SetHamParamFloat(3, get_pcvar_float(gCvarDamageShotgun));
+
+	if(get_user_weapon(inflictor) == HLW_MP5)
+		SetHamParamFloat(3, get_pcvar_float(gCvarDamage9mmar));
+
+	return HAM_IGNORED;
+}
+
+// Daño de las armas (Ballesta con zoom)
+public Forward_TraceAttack(const Victim, const Attacker, Float:Damage, const Float:Direction[3],
+								const TraceResult, const Damagebits) {
+	// Si esta usando una ballesta y esta usando el zoom para disparar
+	if (is_player(Attacker) && (Damagebits & DMG_CROSSBOW) && get_user_weapon(Attacker) == HLW_CROSSBOW) {
+		if (InZoom(Attacker)) {
+			SetHamParamFloat(3, get_pcvar_float(gCvarDamageCrossbow));
+			return HAM_HANDLED;
+		}
+	}
+	return HAM_IGNORED;
 }
