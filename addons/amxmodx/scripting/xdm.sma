@@ -10,12 +10,23 @@
 	- AMX Mod X 1.8.3
 	- Superspawns (Include Solo necesario solo para compilar el plugin)
 
+	-> Runas disponibles:
+	1. Regeneracion de vida
+	2. Trampa
+	3. Cloak
+	4. Super Velocidad
+	5. Baja gravedad
+
 	Agradecimientos:
 	- ConnorMcLeod
 	- rtxa
 	- Th3-822
 	- joropito
 	- GHW_Chronic
+	- Anonimo
+
+	Testers:
+	- DarkZito
 	
 	Contacto: flyingcatdm@gmail.com
 */
@@ -29,9 +40,9 @@
 #include <hl>
 #include <superspawns>
 
-#define PLUGIN_NAME		"[HL] XDM Beta v1.1"
-#define PLUGIN_NAME_SH	"[HL] XDM Beta v1.1"
-#define PLUGIN_VER		"Beta 1.1 Build 31/8/2018"
+#define PLUGIN_NAME		"[HL] XDM Beta v1.1.1"
+#define PLUGIN_NAME_SH	"[HL] XDM Beta v1.1.1"
+#define PLUGIN_VER		"Beta 1.1.1 Build 31/8/2018"
 #define PLUGIN_AUTHOR	"FlyingCat"
 
 #define SIZE_WEAPONS 14 
@@ -60,7 +71,7 @@ const DMG_CROSSBOW  			= (DMG_BULLET | DMG_NEVERGIB);
 #define SPR_RUNE_DOT			"sprites/dot.spr"
 #define SPR_RUNE_TR_SHOCKW		"sprites/shockwave.spr"
 // Numero de runas
-#define NUMB_RUNES              4 
+#define NUMB_RUNES              5 
 #define player_id 1
 #define is_player(%1) (player_id <= %1 <= MAX_PLAYERS)
 #define InZoom(%1) (get_pdata_int(%1, m_iFOV) != 0)
@@ -79,6 +90,7 @@ new gCvarStartArmor;
 new gCvarStartLongJump;
 new gCvarGameName;
 new gCvarPlayerSpeed;
+new gCvarPlayerGravity;
 // Runas
 new gCvarNumbRunes[NUMB_RUNES];
 new gCvarColorRunes[NUMB_RUNES];
@@ -97,6 +109,8 @@ new gMessageDeathMsg;
 new gCvarCloakValue;
 // Runa Super Speed
 new gCvarSSpeedVelocity;
+// Runa Baja Gravedad
+new gCvarLowGravityValue;
 // Hook
 new gCvarHookSpeed;
 new gCvarHookEnabled;
@@ -171,21 +185,24 @@ new const gNameNumbRunes[NUMB_RUNES][] = {
     "xdm_numb_regen_runes",
     "xdm_numb_trap_runes",
     "xdm_numb_cloak_runes",
-    "xdm_numb_sspeed_runes"
+    "xdm_numb_sspeed_runes",
+    "xdm_numb_lowgrav_runes"
 };
 
 new const gNameColorRunes[NUMB_RUNES][] = {
     "xdm_color_regen_runes",
     "xdm_color_trap_runes", 
     "xdm_color_cloak_runes",
-    "xdm_color_sspeed_runes"
+    "xdm_color_sspeed_runes",
+    "xdm_color_lowgrav_runes"
 };
 
 new const gNameDescRunes[NUMB_RUNES][] = {
 	"Runa de regeneracion: Te regenera HP y HEV cada cierto tiempo.", 
 	"Runa de Trampa: Cuando mueres se desata una onda expansiva que hace dano.", 
 	"Runa Cloak: Te vuelves semi-invisible.",
-	"Runa Super Speed: Te mueves muchisimo mas rapido."
+	"Runa Super Speed: Te mueves muchisimo mas rapido.",
+	"Runa Baja Gravedad: Disminuye la gravedad solo para ti."
 };
 
 // Booleano para saber si un player tiene o no tiene una runa y de que tipo
@@ -276,13 +293,15 @@ public plugin_precache() {
 
     create_cvar("xdm_version", PLUGIN_VER, FCVAR_SERVER);
 
-	gCvarGameName = create_cvar("xdm_gamename", "XDM Beta v1.1", FCVAR_SERVER | FCVAR_SPONLY);
+	gCvarGameName = create_cvar("xdm_gamename", "XDM Beta v1.1.1", FCVAR_SERVER | FCVAR_SPONLY);
 
 	gCvarStartHealth = create_cvar("xdm_start_health", "100");
 	gCvarStartArmor = create_cvar("xdm_start_armor", "0");
 	gCvarStartLongJump = create_cvar("xdm_start_longjump", "1");
 	// Velocidad del player
 	gCvarPlayerSpeed = create_cvar("xdm_player_speed", "300.0");
+	// Gravedad del player
+	gCvarPlayerGravity = get_cvar_pointer("sv_gravity");
 	// Hook
 	gCvarHookSpeed = create_cvar("xdm_hook_speed", "5");
 	gCvarHookEnabled = create_cvar("xdm_hook_enabled", "1");
@@ -322,6 +341,9 @@ public plugin_precache() {
 
 	// Velocidad del player con la runa Super Speed
 	gCvarSSpeedVelocity = create_cvar("xdm_sspeed_velocity", "600.0");
+
+	// Gravedad del player con la runa Baja Gravedad
+	gCvarLowGravityValue = create_cvar("xdm_lowgravity_value", "400");
 
 	gTrieHandleInflictorToIgnore = TrieCreate();
 
@@ -431,6 +453,12 @@ public FwdPlayerKilled(victim, attacker) {
             	// Volvemos a la normalidad la visibilidad del player
             	set_user_maxspeed(victim, get_pcvar_float(gCvarPlayerSpeed));
             }
+            // Si la runa que tiene es la de Super Velocidad
+            case 5: {
+            	// Volvemos a la normalidad la gravedad del player
+            	new Float:Gravity = get_pcvar_float(gCvarPlayerGravity) / 800.0;
+            	set_user_gravity(victim, Gravity);
+            }
         }
         g_bTieneRuna[victim] = 0;
          // Se remueve el task encargado de mostrar un HUD al player con informacion de la runa
@@ -537,6 +565,8 @@ public FwdPlayerPostSpawn(id) {
 		SetPlayerStats(id);
 		// Cada player que entre modificarle la maxspeed a 300
     	set_user_maxspeed(id, get_pcvar_float(gCvarPlayerSpeed));
+    	// Cada player que entre modificarle la gravedad a la default del server por si acaso
+    	set_user_gravity(id, (get_pcvar_float(gCvarPlayerGravity) / 800.0));
 	}	
 }
 
@@ -787,6 +817,15 @@ public FwdRunePicked(iEntityRune, iEntityPlayer) {
                 set_user_maxspeed(iEntityPlayer, get_pcvar_float(gCvarSSpeedVelocity));
                 // Spawnea otra runa del mismo tipo
                 spawn_rune(4);
+            }
+            case 5: {
+            	// Muestra un HUD con la informacion sobre la runa
+                set_task(0.5, "ShowHUDDetailsRune", iEntityPlayer + TASK_HUDDETAILSRUNE, _, _, "b");
+                // Modificamos la gravedad del player
+                new Float:Gravity = get_pcvar_float(gCvarLowGravityValue) / 800.0;
+                set_user_gravity(iEntityPlayer, Gravity);
+                // Spawnea otra runa del mismo tipo
+                spawn_rune(5);
             }
         }
         // Remueve la runa al ser tocada por un jugador    
