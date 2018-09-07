@@ -38,4 +38,4 @@ Novedades
 - Se puede mandar en que sitio del mapa te encuentras actualmente, cuanta vida tienes, cuanto escudo tienes y que runa tienes via chat. (Como en Adrenaline Gamer 6.6 o AGMini 6.6, su uso seria igual, bindear en say_team %l para la ubicacion, %h para la vida, %a para el escudo, %p para saber si se tiene o no la Long Jump y %r para el tipo de runa)
 - Se pueden bloquear el uso de ciertas armas. (Por hacer)<br>
 - Se puede tirar la runa que tienes equipada. (Por hacer)<br>
-- Implementado un sistema de votaciones como el de AG6.6 pensando en futuros torneos de XDM o en partidas mas competitivas de 1vs1, 2vs2, 3vs3, etc. (Por hacer)
+- Implementado un sistema de votaciones como el de AG 6.6 pensando en futuros torneos de XDM o en partidas mas competitivas de 1vs1, 2vs2, 3vs3, etc. (Por hacer)
