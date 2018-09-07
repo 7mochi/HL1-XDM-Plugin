@@ -26,11 +26,15 @@ Novedades
 	8. Escudo (Por hacer)<br>
 	9. Super salto (Por hacer)<br>
 	10. Super velocidad (Disponible)<br>
-	11. Vampirismo (Por hacer)<br>
+	11. Vampiro (Disponible)<br>
 	12. Proteccion (Por hacer)<br>
 	13. Super pistola (Por hacer)<br>
 - El color de las runas (Por tipo) es configurable.
 - Un gancho que te permite desplazarte por cualquier lado del mapa. (+hook)<br>
 - No hay limite de velocidad al hacer BHOP. (Bunny hop)<br>
-- Se pueden bloquear el uso de ciertas armas. (Por hacer)<br>
 - Se puede configurar el daño de las armas.<br>
+- La crowbar/palo se puede tirar con el MOUSE2. (Click derecho)<br>
+- El vuelo de la RPG es ilimitado.<br>
+- Se puede mandar en que sitio del mapa te encuentras actualmente, cuanta vida tienes, cuanto escudo tienes y que runa tienes via chat. (Como en Adrenaline Gamer 6.6 o AGMini 6.6, su uso seria igual, bindear en say_team %l para la ubicacion, %h para la vida, %a para el escudo, %p para saber si se tiene o no la Long Jump y %r para el tipo de runa)
+- Se pueden bloquear el uso de ciertas armas. (Por hacer)<br>
+- Se puede tirar la runa que tienes equipada. (Por hacer)<br>
