@@ -30,7 +30,7 @@ NAME_SGLOCK = Super Glock
 
 [es]
 DESC_REGEN = Runa de regeneracion: Te regenera HP y HEV cada cierto tiempo.
-DESC_TRAP = Runa de Trampa: Cuando mueres, se desata una onda expansiva que hace dano.
+DESC_TRAP = Runa de Trampa: Cuando mueres, se desata una onda expansiva que hace danio.
 DESC_CLOAK = Runa Cloak: Te vuelves semi-invisible.
 DESC_SSPEED = Runa Super Velocidad: Te mueves muchisimo mas rapido.
 DESC_LOWGRAV = Runa Baja Gravedad: Disminuye la gravedad solo para ti.
