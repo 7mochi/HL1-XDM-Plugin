@@ -26,7 +26,7 @@ Novedades
 	8. Escudo (Por hacer)<br>
 	9. Super salto (Por hacer)<br>
 	10. Super velocidad (Disponible)<br>
-	11. Vampiro (Disponible pero bugeada)<br>
+	11. Vampiro (Disponible)<br>
 	12. Proteccion (Por hacer)<br>
 	13. Super pistola (Disponible)<br>
 - El color de las runas (Por tipo) es configurable.
