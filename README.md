@@ -29,6 +29,7 @@ Novedades
 	11. Vampiro (Disponible)<br>
 	12. Proteccion (Por hacer)<br>
 	13. Super pistola (Disponible)<br>
+	Total de runas disponibles: 7
 - El color de las runas (Por tipo) es configurable.
 - Un gancho que te permite desplazarte por cualquier lado del mapa. (+hook)<br>
 - No hay limite de velocidad al hacer BHOP. (Bunny hop)<br>
