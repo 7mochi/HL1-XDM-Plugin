@@ -24,12 +24,12 @@ Novedades
 	6. Random (Por hacer)<br>
 	7. Teletransportacion (Por hacer)<br>
 	8. Escudo (Por hacer)<br>
-	9. Super salto (Por hacer)<br>
+	9. Super salto (Disponible)<br>
 	10. Super velocidad (Disponible)<br>
 	11. Vampiro (Disponible)<br>
 	12. Proteccion (Por hacer)<br>
 	13. Super pistola (Disponible)<br>
-	Total de runas disponibles: 7
+	-> Total de runas disponibles: 8
 - El color de las runas (Por tipo) es configurable.
 - Un gancho que te permite desplazarte por cualquier lado del mapa. (+hook)<br>
 - No hay limite de velocidad al hacer BHOP. (Bunny hop)<br>
