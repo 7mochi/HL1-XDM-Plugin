@@ -33,6 +33,7 @@
 	- LetiLetiLepestok
 	- Lev
 	- Turanga_Leela
+	- HamletEagle
 
 	Testers:
 	- DarkZito
