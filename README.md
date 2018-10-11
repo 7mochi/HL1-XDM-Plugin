@@ -18,7 +18,7 @@ Novedades
 - Hay runas que te dan poderes como:<br>
 	1. Regeneracion de vida y escudo (Disponible)<br>
 	2. Trap/Trampa (Disponible)<br>
-	3. Invisibilidad (Disponible)<br>
+	3. Semi-invisibilidad (Disponible)<br>
 	4. Infinitas Crowbar Tirables (Por hacer)<br>
 	5. Baja gravedad (Disponible)<br>
 	6. Random (Por hacer)<br>
