@@ -8,7 +8,7 @@
 	- HL Bugfixed v0.1.910 o superior
 	- Metamod
 	- AMX Mod X 1.8.3
-	- hl y Superspawns (Includes solo necesarios para compilar el plugin)
+	- hl y rog (Includes solo necesarios para compilar el plugin)
 	- Plugin 'nextmap' del AMX Mod X necesario para el buen funcionamiento del vote xdmmap
 
 	-> Runas disponibles:
@@ -19,6 +19,7 @@
 	5. Baja gravedad
 	6. Vampiro
 	7. Super Pistola
+	8. Super Salto
 
 	Agradecimientos:
 	- ConnorMcLeod
@@ -49,12 +50,12 @@
 #include <fun>
 #include <hamsandwich>
 #include <hl>
-#include <superspawns>
+#include <rog>
 #include <xs>
 
-#define PLUGIN_NAME		"[HL] XDM Beta v2.1"
-#define PLUGIN_NAME_SH		"[HL] XDM Beta v2.1"
-#define PLUGIN_VER		"Beta 2.1 Build 09/10/2018"
+#define PLUGIN_NAME		"[HL] XDM Beta v2.2"
+#define PLUGIN_NAME_SH		"[HL] XDM Beta v2.2"
+#define PLUGIN_VER		"Beta 2.2 Build 10/10/2018"
 #define PLUGIN_AUTHOR		"FlyingCat"
 
 // TaskIDs
@@ -255,7 +256,7 @@ new const gWeaponClass[][] = {
 
 // ---------------- Aca comienza todo lo relacionado a las runas y sus powerups --------------------
 // Numero de runas
-#define NUMB_RUNES              7
+#define NUMB_RUNES              8
 // Models
 #define MDL_RUNE                "models/xdm_rune.mdl"
 // Sprites
@@ -323,6 +324,9 @@ new gCvarVampireLifestealHEV;
 new gCvarSGShootSpeed;
 new old_clip[33];
 
+// Runa Super Salto
+new gCvarSJHeight;
+
 new const gNameNumbRunes[NUMB_RUNES][] = {
 	"xdm_numb_regen_runes",
 	"xdm_numb_trap_runes",
@@ -330,7 +334,8 @@ new const gNameNumbRunes[NUMB_RUNES][] = {
 	"xdm_numb_sspeed_runes",
 	"xdm_numb_lowgrav_runes",
 	"xdm_numb_vampire_runes",
-	"xdm_numb_sglock_runes"
+	"xdm_numb_sglock_runes",
+	"xdm_numb_sjump_runes"
 };
 
 new const gNameColorRunes[NUMB_RUNES][] = {
@@ -340,7 +345,8 @@ new const gNameColorRunes[NUMB_RUNES][] = {
 	"xdm_color_sspeed_runes",
 	"xdm_color_lowgrav_runes",
 	"xdm_color_vampire_runes",
-	"xdm_color_sglock_runes"
+	"xdm_color_sglock_runes",
+	"xdm_color_sjump_runes"
 };
 
 new const gNameTitlesRunes[NUMB_RUNES + 1][] = {
@@ -351,7 +357,8 @@ new const gNameTitlesRunes[NUMB_RUNES + 1][] = {
 	"NAME_SSPEED",
 	"NAME_LOWGRAV",
 	"NAME_VAMPIRE",
-	"NAME_SGLOCK"
+	"NAME_SGLOCK",
+	"NAME_SJUMP"
 };
 
 new const gNameDescRunes[NUMB_RUNES][] = {
@@ -361,7 +368,8 @@ new const gNameDescRunes[NUMB_RUNES][] = {
 	"DESC_SSPEED",
 	"DESC_LOWGRAV",
 	"DESC_VAMPIRE",
-	"DESC_SGLOCK"
+	"DESC_SGLOCK",
+	"DESC_SJUMP"
 };
 
 // Booleano para saber si un player tiene o no tiene una runa y de que tipo
@@ -427,7 +435,7 @@ new gCvarDamageCrossbow;
 
 public plugin_precache() {
 	create_cvar("xdm_version", PLUGIN_VER, FCVAR_SERVER);	
-	gCvarGameName = create_cvar("xdm_gamename", "XDM Beta v2.1", FCVAR_SERVER | FCVAR_SPONLY);
+	gCvarGameName = create_cvar("xdm_gamename", "XDM Beta v2.2", FCVAR_SERVER | FCVAR_SPONLY);
 	
 	// ---------------------- Todo lo relacionado a los votos y locations ----------------------
 	// Precache sound que se usa en la cuenta regresiva
@@ -519,6 +527,9 @@ public plugin_precache() {
 	// Velocidad de disparo de la runa Super Pistola
 	gCvarSGShootSpeed = create_cvar("xdm_sglock_shootspeed", "9999.0");
 	
+	// Altura de la runa Super Salto
+	gCvarSJHeight = create_cvar("xdm_sjump_height", "550.0");
+	
 	for (new i; i < sizeof gCvarNumbRunes; i++) {
 		gCvarNumbRunes[i] = create_cvar(gNameNumbRunes[i], "1", FCVAR_SERVER);
 		gCvarColorRunes[i] = create_cvar(gNameColorRunes[i], "0", FCVAR_SERVER);
@@ -607,6 +618,8 @@ public plugin_init() {
 	RegisterHam(Ham_Weapon_PrimaryAttack, "weapon_9mmhandgun", "Glock_Primary_Attack_Pre" , 0);
 	RegisterHam(Ham_Weapon_PrimaryAttack, "weapon_9mmhandgun", "Glock_Primary_Attack_Post", 1);
 	
+	register_clcmd("userune","userune");
+	
 	// ---------------------------- Todo lo relacionado al hook --------------------------------
 	register_concmd("+hook","Hook_On");
 	register_concmd("-hook","Hook_Off");
@@ -657,13 +670,11 @@ public plugin_cfg() {
 	
 	// ------------------- Todo referente a las runas y powerups -------------------------------
 	// Distancia minima entre los puntos
-	// Anterior distancia 185.0
-	// Nueva distancia 125.0
-	SsInit(125.0);
-	// Comienza a analizar el mapa
-	SsScan();
+	// Anterior distancia 125.0
+	// Nueva distancia 200.0
+	ROGInitialize(200.0);
 	// Dump de los origines encontrados
-	SsDump();
+	ROGDumpOriginData();
 	
 	// Spawneando las runas con distintos colores dependiendo del tipo de runa
 	for (new i; i < sizeof gCvarNumbRunes; i++) {
@@ -842,10 +853,6 @@ public FwdPlayerKilled(victim, attacker) {
 				new szWeapon[30];
 				read_data(4, szWeapon, charsmax(szWeapon));
 				
-				if (victim == attacker) {
-					return PLUGIN_CONTINUE;
-				}
-				
 				if (TrieKeyExists(gTrieHandleInflictorToIgnore, szWeapon)) {
 					return PLUGIN_CONTINUE;
 				}
@@ -853,7 +860,7 @@ public FwdPlayerKilled(victim, attacker) {
 				new iOrigin[3];
 				get_user_origin(victim, iOrigin);
 				
-				new iRadius = get_pcvar_float(gCvarTrapRadius);	
+				new iRadius = get_pcvar_float(gCvarTrapRadius);
 				
 				UTIL_CreateBeamCylinder(iOrigin, 120, gCylinderSprite, 0, 0, 6, 16, 
 						0, random(255), random(255), random(255), 255, 0);
@@ -866,7 +873,8 @@ public FwdPlayerKilled(victim, attacker) {
 				UTIL_Blast_ExplodeDamage(victim, attacker, 
 						get_pcvar_float(gCvarTrapDamage), iRadius);
 				
-				emit_sound(victim, CHAN_BODY, SND_RUNE_TR_EXPLODE, VOL_NORM, ATTN_NORM, 0, PITCH_NORM);
+				emit_sound(victim, CHAN_BODY, SND_RUNE_TR_EXPLODE, VOL_NORM, 
+						ATTN_NORM, 0, PITCH_NORM);
 			}
 			
 			// Si la runa que tiene es la de Cloak
@@ -890,6 +898,7 @@ public FwdPlayerKilled(victim, attacker) {
 
 		}
 		g_bTieneRuna[victim] = 0;
+		
 		// Se remueve el task encargado de mostrar un HUD al player con info de la runa
 		remove_task(TASK_HUDDETAILSRUNE + victim);
 	}
@@ -1683,36 +1692,30 @@ stock ag_set_user_bpammo(client, weapon, ammo) {
 // Se encarga de spawnear las runas
 public spawn_rune(runeType) {
 	new Float:origin[3];
-	// SsGetOrigin() retornara true si se encuentra una ubicacion util
-	// Sino retornara false si ya no hay mas ubicaciones utiles
-	if (SsGetOrigin(origin)) {
-		new iEntity = create_entity("info_target");
-		if (is_valid_ent(iEntity)) {
-			// Classname de la runa
-			entity_set_string(iEntity, EV_SZ_classname, g_RuneClassname);
+	ROGGetOrigin(origin);
+	new iEntity = create_entity("info_target");
+	if (is_valid_ent(iEntity)) {
+		// Classname de la runa
+		entity_set_string(iEntity, EV_SZ_classname, g_RuneClassname);
 			
-			// Model de la runa
-			entity_set_model(iEntity, MDL_RUNE);
+		// Model de la runa
+		entity_set_model(iEntity, MDL_RUNE);
 			
-			// Animacion de la runa
-			entity_set_float(iEntity, EV_FL_framerate, 1.0);
+		// Animacion de la runa
+		entity_set_float(iEntity, EV_FL_framerate, 1.0);
 			
-			entity_set_int(iEntity, EV_INT_solid, SOLID_TRIGGER);
+		entity_set_int(iEntity, EV_INT_solid, SOLID_TRIGGER);
 			
-			// Ubicacion de la runa
-			entity_set_vector(iEntity, EV_VEC_origin, origin);
+		// Ubicacion de la runa
+		entity_set_vector(iEntity, EV_VEC_origin, origin);
 			
-			// Color/Skin de la runa
-			entity_set_int(iEntity, EV_INT_skin, 
-					get_pcvar_num(gCvarColorRunes[runeType - 1]));
+		// Color/Skin de la runa
+		entity_set_int(iEntity, EV_INT_skin, get_pcvar_num(gCvarColorRunes[runeType - 1]));
 			
-			// Tipo de runa
-			entity_set_int(iEntity, EV_INT_iuser1, runeType);
+		// Tipo de runa
+		entity_set_int(iEntity, EV_INT_iuser1, runeType);
 			
-			drop_to_floor(iEntity);
-		}
-		} else {
-		server_print("[XDM] No hay mas espacio para colocar mas runas");
+		drop_to_floor(iEntity);
 	}
 	return PLUGIN_HANDLED;
 }
@@ -1733,7 +1736,8 @@ public FwdRunePicked(iEntityRune, iEntityPlayer) {
 	if (pev_valid(iEntityRune) && (g_bTieneRuna[iEntityPlayer]) < 1) {
 		g_bTieneRuna[iEntityPlayer] = entity_get_int(iEntityRune, EV_INT_iuser1);
 		// Reproduce el sonido
-		emit_sound(iEntityPlayer, CHAN_STATIC, SND_RUNE_PICKED, 1.0, ATTN_NORM, 0, PITCH_NORM);
+		emit_sound(iEntityPlayer, CHAN_STATIC, SND_RUNE_PICKED, 1.0, ATTN_NORM, 0, 
+					PITCH_NORM);
 		switch (entity_get_int(iEntityRune, EV_INT_iuser1)) {
 			// Runa de tipo regenerativa
 			case 1: {
@@ -1741,7 +1745,8 @@ public FwdRunePicked(iEntityRune, iEntityPlayer) {
 				set_task(0.5, "ShowHUDDetailsRune", 
 						iEntityPlayer + TASK_HUDDETAILSRUNE, _, _, "b");
 				// Da el powerup al Player que toco la runa
-				set_task(get_pcvar_float(gCvarRegenFrequency), "func_regenHPHEV", iEntityPlayer + TASK_REGENERATION, _, _, "b");
+				set_task(get_pcvar_float(gCvarRegenFrequency), "func_regenHPHEV", 
+						iEntityPlayer + TASK_REGENERATION, _, _, "b");
 				// Spawnea otra runa del mismo tipo
 				spawn_rune(1);
 			}
@@ -1775,7 +1780,8 @@ public FwdRunePicked(iEntityRune, iEntityPlayer) {
 				set_task(0.5, "ShowHUDDetailsRune", 
 						iEntityPlayer + TASK_HUDDETAILSRUNE, _, _, "b");
 				// Modificamos la velocidad del player
-				set_user_maxspeed(iEntityPlayer, get_pcvar_float(gCvarSSpeedVelocity));
+				set_user_maxspeed(iEntityPlayer, 
+						get_pcvar_float(gCvarSSpeedVelocity));
 				// Spawnea otra runa del mismo tipo
 				spawn_rune(4);
 			}
@@ -1808,6 +1814,15 @@ public FwdRunePicked(iEntityRune, iEntityPlayer) {
 						iEntityPlayer + TASK_HUDDETAILSRUNE, _, _, "b");
 				// Spawnea otra runa del mismo tipo
 				spawn_rune(7);
+			}
+			
+			// Runa de tipo Super Salto
+			case 8: {
+				// Muestra un HUD con la informacion sobre la runa
+				set_task(0.5, "ShowHUDDetailsRune", 
+						iEntityPlayer + TASK_HUDDETAILSRUNE, _, _, "b");
+				// Spawnea otra runa del mismo tipo
+				spawn_rune(8);
 			}
 		
 		}
@@ -1979,6 +1994,24 @@ public Glock_Primary_Attack_Post(const glock) {
 			set_pdata_float(glock, m_flTimeWeaponIdle, 0.3, 4);
 	}
 }
+
+// ------------------------------- Relacionado a la Runa Super Salto -------------------------------
+public userune(id) {
+	if (g_bTieneRuna[id] < 1) {
+		client_print(id, print_chat, "%L", LANG_PLAYER, "USERUNE_NONE");
+	} else // Si tiene la runa Super Salto 
+	if (g_bTieneRuna[id] == 8) {
+		if(get_entity_flags(id) & FL_ONGROUND) {
+			new Float: velocity[3];
+			entity_get_vector(id,EV_VEC_velocity, velocity);
+			velocity[2] = get_pcvar_float(gCvarSJHeight);
+			entity_set_vector(id,EV_VEC_velocity, velocity);
+			return PLUGIN_HANDLED;
+	}
+	}
+	return PLUGIN_HANDLED;
+}
+
 
 // ------------------------------------- Relacionado al hook  --------------------------------------
 public Hook_On(id,level,cid) {
@@ -2304,7 +2337,8 @@ public FlyCrowbar_Spawn(id) {
 
 public FlyCrowbar_Whizz(crowbar){
 	if (pev_valid(crowbar)){
-		emit_sound(crowbar, CHAN_WEAPON, "weapons/cbar_miss1.wav", 0.9, ATTN_NORM, 0, PITCH_NORM);		
+		emit_sound(crowbar, CHAN_WEAPON, "weapons/cbar_miss1.wav", 0.9, ATTN_NORM, 0, 
+				PITCH_NORM);		
 		set_task(0.2, "FlyCrowbar_Whizz", crowbar);
 	}
 }
@@ -2344,7 +2378,8 @@ stock GetGunPosition(const player,Float:origin[3]){
 }
 
 // -------------------------------- Relacionado al danio de las armas ------------------------------
-public Weapons_Damages(victim, inflictor, Float:damage, Float:direction[3], traceresult, damagebits) {
+public Weapons_Damages(victim, inflictor, Float:damage, Float:direction[3], traceresult, 
+			damagebits) {
 	if(!(1 <= inflictor <= MAX_PLAYERS))
 		return HAM_IGNORED;
 	
@@ -2366,7 +2401,8 @@ public Weapons_Damages(victim, inflictor, Float:damage, Float:direction[3], trac
 public Forward_TraceAttack(const Victim, const Attacker, Float:Damage, const Float:Direction[3],
 				const TraceResult, const Damagebits) {
 	// Si esta usando una ballesta y esta usando el zoom para disparar
-	if (is_player(Attacker) && (Damagebits & DMG_CROSSBOW) && get_user_weapon(Attacker) == HLW_CROSSBOW) {
+	if (is_player(Attacker) && (Damagebits & DMG_CROSSBOW) && 
+				get_user_weapon(Attacker) == HLW_CROSSBOW) {
 		if (InZoom(Attacker)) {
 			SetHamParamFloat(3, get_pcvar_float(gCvarDamageCrossbow));
 			return HAM_HANDLED;
