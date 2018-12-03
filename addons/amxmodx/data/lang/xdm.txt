@@ -30,6 +30,7 @@ NAME_VAMPIRE = Vampire
 NAME_SGLOCK = Super Glock
 NAME_SJUMP = Super Jump
 USERUNE_NONE = [XDM 2018] You haven't picked up a rune.
+DROPRUNE_NONE = [XDM 2018] You haven't picked up a rune.
 
 [es]
 DESC_REGEN = Runa de regeneracion: Te regenera HP y HEV cada cierto tiempo.
@@ -63,3 +64,4 @@ NAME_VAMPIRE = Vampiro
 NAME_SGLOCK = Super Pistola
 NAME_SJUMP = Super Salto
 USERUNE_NONE = [XDM 2018] No has agarrado ninguna runa.
+DROPRUNE_NONE = [XDM 2018] No has agarrado ninguna runa.
