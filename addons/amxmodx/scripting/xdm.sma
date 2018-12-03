@@ -54,9 +54,9 @@
 #include <rog>
 #include <xs>
 
-#define PLUGIN_NAME		"[HL] XDM Beta v2.2"
-#define PLUGIN_NAME_SH		"[HL] XDM Beta v2.2"
-#define PLUGIN_VER		"Beta 2.2 Build 10/10/2018"
+#define PLUGIN_NAME		"[HL] XDM Beta v2.3"
+#define PLUGIN_NAME_SH		"[HL] XDM Beta v2.3"
+#define PLUGIN_VER		"Beta v2.3 Build 03/12/2018"
 #define PLUGIN_AUTHOR		"FlyingCat"
 
 // TaskIDs
@@ -68,7 +68,8 @@ enum (+=100) {
 	TASK_DENYVOTE,
 	TASK_SENDTOSPEC,
 	TASK_SENDVICTIMTOSPEC,
-	TASK_TIMELEFT
+	TASK_TIMELEFT,
+	TASK_DROPINGRUNE
 };
 
 // --------------------- Aca comienza todo lo relacionado a los votos y locations ------------------
@@ -204,7 +205,7 @@ new gCvarStartLongJump;
 new gCvarPlayerMaxHealth;
 new gCvarPlayerMaxArmor;
 
-// Game player equip keys
+// Si es que existe equipamiento del jugador
 new bool:gGamePlayerEquipExists;
 
 new const gNameStartWeapons[SIZE_WEAPONS][] = {
@@ -436,7 +437,7 @@ new gCvarDamageCrossbow;
 
 public plugin_precache() {
 	create_cvar("xdm_version", PLUGIN_VER, FCVAR_SERVER);	
-	gCvarGameName = create_cvar("xdm_gamename", "XDM Beta v2.2", FCVAR_SERVER | FCVAR_SPONLY);
+	gCvarGameName = create_cvar("xdm_gamename", "XDM Beta v2.3", FCVAR_SERVER | FCVAR_SPONLY);
 	
 	// ---------------------- Todo lo relacionado a los votos y locations ----------------------
 	// Precache sound que se usa en la cuenta regresiva
@@ -620,6 +621,7 @@ public plugin_init() {
 	RegisterHam(Ham_Weapon_PrimaryAttack, "weapon_9mmhandgun", "Glock_Primary_Attack_Post", 1);
 	
 	register_clcmd("userune","userune");
+	register_clcmd("droprune", "droprune");
 	
 	// ---------------------------- Todo lo relacionado al hook --------------------------------
 	register_concmd("+hook","Hook_On");
@@ -674,8 +676,6 @@ public plugin_cfg() {
 	// Anterior distancia 125.0
 	// Nueva distancia 200.0
 	ROGInitialize(200.0);
-	// Dump de los origines encontrados
-	ROGDumpOriginData();
 	
 	// Spawneando las runas con distintos colores dependiendo del tipo de runa
 	for (new i; i < sizeof gCvarNumbRunes; i++) {
@@ -712,6 +712,9 @@ public client_putinserver(id) {
 }
 
 public client_disconnected(id) {
+	// Tira la runa al desconectarse
+	droprune(id);
+	
 	new authid[32];
 	get_user_authid(id, authid, charsmax(authid));
 	
@@ -724,7 +727,7 @@ public client_disconnected(id) {
 		new deaths = hl_get_user_deaths(id);
 		SaveScore(id, frags, deaths);
 		console_print(0, "%L", LANG_PLAYER, "MATCH_LEAVE", authid, frags, deaths);
-	}
+	}		
 	
 	return PLUGIN_HANDLED;
 }
@@ -843,12 +846,8 @@ public client_connect(id) {
 public FwdPlayerKilled(victim, attacker) {
 	// Si es que tiene alguna runa
 	if (g_bTieneRuna[victim] > 0) {
+		droprune(victim);
 		switch (g_bTieneRuna[victim]) {
-			// Si la runa que tiene es la de regeneracion
-			case 1: {
-				remove_task(TASK_REGENERATION + victim);
-			}
-			
 			// Si la runa que tiene es la de Trampa
 			case 2: {
 				new szWeapon[30];
@@ -871,37 +870,13 @@ public FwdPlayerKilled(victim, attacker) {
 						0, 6, 16, 0, random(255), random(255), random(255), 
 						255, 0);
 				
-				UTIL_Blast_ExplodeDamage(victim, attacker, 
+				UTIL_Blast_ExplodeDamage(victim, attacker,
 						get_pcvar_float(gCvarTrapDamage), iRadius);
 				
 				emit_sound(victim, CHAN_BODY, SND_RUNE_TR_EXPLODE, VOL_NORM, 
 						ATTN_NORM, 0, PITCH_NORM);
 			}
-			
-			// Si la runa que tiene es la de Cloak
-			case 3: {
-				// Volvemos a la normalidad la visibilidad del player
-				UncloakPlayer(victim);
-			}
-			
-			// Si la runa que tiene es la de Super Velocidad
-			case 4: {
-				// Volvemos a la normalidad la visibilidad del player
-				set_user_maxspeed(victim, get_pcvar_float(gCvarPlayerSpeed));
-			}
-			
-			// Si la runa que tiene es la de Super Velocidad
-			case 5: {
-				// Volvemos a la normalidad la gravedad del player
-				new Float:Gravity = get_pcvar_float(gCvarPlayerGravity) / 800.0;
-				set_user_gravity(victim, Gravity);
-			}
-
 		}
-		g_bTieneRuna[victim] = 0;
-		
-		// Se remueve el task encargado de mostrar un HUD al player con info de la runa
-		remove_task(TASK_HUDDETAILSRUNE + victim);
 	}
 	return PLUGIN_HANDLED;
 }
@@ -1134,6 +1109,12 @@ SaveScore(id, frags = 0, deaths = 0) {
 ResetScore(id) {
 	set_user_frags(id, 0);
 	hl_set_user_deaths(id, 0);
+}
+
+public SendToSpec(taskid) {
+	new id = taskid - TASK_SENDTOSPEC;
+	if (is_user_connected(id))
+		ag_set_user_spectator(id, true);
 }
 
 // ---------------------------------------- Vote XDMABORT ------------------------------------------
@@ -1621,6 +1602,9 @@ public CvarTimeLimitHook(pcvar, const old_value[], const new_value[]) {
 }
 
 public CmdSpectate(id) {
+	// Tira la runa al irse a espectador
+	set_task(0.1, "DropRuneSpec", id);
+	
 	new authid[32];
 	get_user_authid(id, authid, charsmax(authid));
 	
@@ -1748,8 +1732,6 @@ public FwdRunePicked(iEntityRune, iEntityPlayer) {
 				// Da el powerup al Player que toco la runa
 				set_task(get_pcvar_float(gCvarRegenFrequency), "func_regenHPHEV", 
 						iEntityPlayer + TASK_REGENERATION, _, _, "b");
-				// Spawnea otra runa del mismo tipo
-				spawn_rune(1);
 			}
 			
 			// Runa de tipo Trampa
@@ -1760,8 +1742,6 @@ public FwdRunePicked(iEntityRune, iEntityPlayer) {
 				// No es necesario dar un powerup o algo por el estilo por aca
 				// Porque ya es suficiente pasandole el tipo de runa
 				// en g_bTieneRuna[iEntityPlayer]
-				// Spawnea otra runa del mismo tipo
-				spawn_rune(2);
 			}
 			
 			// Runa de tipo Cloak
@@ -1771,8 +1751,6 @@ public FwdRunePicked(iEntityRune, iEntityPlayer) {
 						iEntityPlayer + TASK_HUDDETAILSRUNE, _, _, "b");
 				// Hacemos semi-invisible al player
 				CloakPlayer(iEntityPlayer, get_pcvar_num(gCvarCloakValue));
-				// Spawnea otra runa del mismo tipo
-				spawn_rune(3);
 			}
 			
 			// Runa de tipo Super Speed
@@ -1782,9 +1760,7 @@ public FwdRunePicked(iEntityRune, iEntityPlayer) {
 						iEntityPlayer + TASK_HUDDETAILSRUNE, _, _, "b");
 				// Modificamos la velocidad del player
 				set_user_maxspeed(iEntityPlayer, 
-						get_pcvar_float(gCvarSSpeedVelocity));
-				// Spawnea otra runa del mismo tipo
-				spawn_rune(4);
+						get_pcvar_float(gCvarSSpeedVelocity));				
 			}
 			
 			// Runa de tipo Baja Gravedad
@@ -1795,8 +1771,6 @@ public FwdRunePicked(iEntityRune, iEntityPlayer) {
 				// Modificamos la gravedad del player
 				new Float:Gravity = get_pcvar_float(gCvarLowGravityValue) / 800.0;
 				set_user_gravity(iEntityPlayer, Gravity);
-				// Spawnea otra runa del mismo tipo
-				spawn_rune(5);
 			}
 			
 			// Runa de tipo Vampiro
@@ -1804,8 +1778,6 @@ public FwdRunePicked(iEntityRune, iEntityPlayer) {
 				// Muestra un HUD con la informacion sobre la runa
 				set_task(0.5, "ShowHUDDetailsRune", 
 						iEntityPlayer + TASK_HUDDETAILSRUNE, _, _, "b");
-				// Spawnea otra runa del mismo tipo
-				spawn_rune(6);
 			}
 			
 			// Runa de tipo Super Glock
@@ -1813,8 +1785,6 @@ public FwdRunePicked(iEntityRune, iEntityPlayer) {
 				// Muestra un HUD con la informacion sobre la runa
 				set_task(0.5, "ShowHUDDetailsRune", 
 						iEntityPlayer + TASK_HUDDETAILSRUNE, _, _, "b");
-				// Spawnea otra runa del mismo tipo
-				spawn_rune(7);
 			}
 			
 			// Runa de tipo Super Salto
@@ -1822,8 +1792,6 @@ public FwdRunePicked(iEntityRune, iEntityPlayer) {
 				// Muestra un HUD con la informacion sobre la runa
 				set_task(0.5, "ShowHUDDetailsRune", 
 						iEntityPlayer + TASK_HUDDETAILSRUNE, _, _, "b");
-				// Spawnea otra runa del mismo tipo
-				spawn_rune(8);
 			}
 		
 		}
@@ -1982,7 +1950,8 @@ public Glock_Primary_Attack_Post(const glock) {
 	new player = get_pdata_cbase(glock, m_pPlayer, 4);
 	// Si tiene la runa Super Glock
 	if (g_bTieneRuna[player] == 7) {
-		set_pdata_float(glock, m_flNextSecondaryAttack, get_pcvar_num(gCvarSGShootSpeed), 4);
+		set_pdata_float(glock, m_flNextSecondaryAttack, 
+				get_pcvar_num(gCvarSGShootSpeed), 4);
 		
 		if(old_clip[player] <= 0)
 			return;
@@ -1996,7 +1965,7 @@ public Glock_Primary_Attack_Post(const glock) {
 	}
 }
 
-// ------------------------------- Relacionado a la Runa Super Salto -------------------------------
+// --------------------------- Relacionado al comando userune y droprune ---------------------------
 public userune(id) {
 	if (g_bTieneRuna[id] < 1) {
 		client_print(id, print_chat, "%L", LANG_PLAYER, "USERUNE_NONE");
@@ -2008,11 +1977,87 @@ public userune(id) {
 			velocity[2] = get_pcvar_float(gCvarSJHeight);
 			entity_set_vector(id,EV_VEC_velocity, velocity);
 			return PLUGIN_HANDLED;
-	}
+		}
 	}
 	return PLUGIN_HANDLED;
 }
 
+public droprune(id) {
+	// Si no tiene ninguna runa
+	if (g_bTieneRuna[id] < 1) {
+		client_print(id, print_chat, "%L", LANG_PLAYER, "DROPRUNE_NONE");
+	} else // Si tiene alguna runa
+	if (g_bTieneRuna[id] > 0) {
+		new iEntity = create_entity("info_target");
+		if (is_valid_ent(iEntity)) {
+			entity_set_string(iEntity, EV_SZ_classname, g_RuneClassname);
+			entity_set_model(iEntity, MDL_RUNE);
+			entity_set_float(iEntity, EV_FL_framerate, 1.0);
+			entity_set_int(iEntity, EV_INT_solid, SOLID_TRIGGER);
+			
+			// Obteniendo origin del jugador
+			new playerOrigin[3];
+			pev(id, pev_origin, playerOrigin);
+			entity_set_vector(iEntity, EV_VEC_origin, playerOrigin);
+			entity_set_int(iEntity, EV_INT_skin, 
+			       get_pcvar_num(gCvarColorRunes[g_bTieneRuna[id] - 1]));
+			entity_set_int(iEntity, EV_INT_iuser1, g_bTieneRuna[id]);
+			drop_to_floor(iEntity);
+		}		
+		new Float:velocity[3];
+		velocity_by_aim(id, 400, velocity);
+		
+		set_pev(iEntity, pev_angles, 0);
+		set_pev(iEntity, pev_velocity, velocity);
+		set_pev(iEntity, pev_movetype, MOVETYPE_TOSS);
+		set_pev(iEntity, pev_aiment, 0);
+		set_pev(iEntity, pev_solid, SOLID_TRIGGER);
+		
+		// Quitando el efecto de la runa que tiene el player
+		switch (g_bTieneRuna[id]) {
+			// Si la runa que tiene es la de regeneracion
+			case 1: {
+				remove_task(TASK_REGENERATION + id);
+			}
+			
+			// Si la runa que tiene es la de Cloak
+			case 3: {
+				// Volvemos a la normalidad la visibilidad del player
+				UncloakPlayer(id);
+			}
+			
+			// Si la runa que tiene es la de Super Velocidad
+			case 4: {
+				// Volvemos a la normalidad la visibilidad del player
+				set_user_maxspeed(id, get_pcvar_float(gCvarPlayerSpeed));
+			}
+			
+			// Si la runa que tiene es la de Super Velocidad
+			case 5: {
+				// Volvemos a la normalidad la gravedad del player
+				new Float:Gravity = get_pcvar_float(gCvarPlayerGravity) / 800.0;
+				set_user_gravity(id, Gravity);
+			}
+
+		}
+		// Retraso antes de eliminar la runa del arreglo para evitar un glitch al dropear
+		set_task(0.1, "RemoveRuneFromArray", id + TASK_DROPINGRUNE);
+		
+		// Se remueve el task encargado de mostrar un HUD al player con info de la runa
+		remove_task(TASK_HUDDETAILSRUNE + id);
+	}	
+}
+
+public RemoveRuneFromArray(taskid) {
+	new id = taskid - TASK_DROPINGRUNE;
+	g_bTieneRuna[id] = 0;
+	remove_task(taskid);
+}
+
+public DropRuneSpec(id) {
+	if (hl_get_user_spectator(id))
+		droprune(id);
+}
 
 // ------------------------------------- Relacionado al hook  --------------------------------------
 public Hook_On(id,level,cid) {
@@ -2411,3 +2456,6 @@ public Forward_TraceAttack(const Victim, const Attacker, Float:Damage, const Flo
 	}
 	return HAM_IGNORED;
 }
+/* AMXX-Studio Notes - DO NOT MODIFY BELOW HERE
+*{\\ rtf1\\ ansi\\ deff0{\\ fonttbl{\\ f0\\ fnil Tahoma;}}\n\\ viewkind4\\ uc1\\ pard\\ lang10250\\ f0\\ fs16 \n\\ par }
+*/
